@@ -1,0 +1,53 @@
+name: Update cask
+
+# Keeps Casks/flowlight.rb pointing at the newest Flowlight release.
+#
+# This lives here, in the tap, rather than in the app's release workflow, so it can use this repository's own
+# GITHUB_TOKEN. The alternative — the release workflow pushing here — needs a personal access token that can
+# rewrite the cask stored in another repository's secrets, which is a larger capability than the job needs and
+# one that expires quietly.
+on:
+  schedule:
+    - cron: "17 6 * * *"      # daily, a little after the hour
+  workflow_dispatch:           # or run it by hand right after a release
+  repository_dispatch:
+    types: [flowlight-released]
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Bump the cask if there's a newer release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          CASK=Casks/flowlight.rb
+          latest=$(gh release view --repo xinbetween/flowlight --json tagName --jq .tagName)
+          version="${latest#v}"
+          current=$(sed -n 's/^  version "\(.*\)"/\1/p' "$CASK")
+          echo "cask: $current   latest release: $version"
+          if [ "$current" = "$version" ]; then
+            echo "Already current."
+            exit 0
+          fi
+
+          url="https://github.com/xinbetween/flowlight/releases/download/$latest/Flowlight.dmg"
+          curl -fsSL -o Flowlight.dmg "$url"
+          sha=$(sha256sum Flowlight.dmg | cut -d' ' -f1)
+          rm -f Flowlight.dmg
+          # The checksum has to come from the artifact people will actually download, not from a local build.
+          echo "sha256: $sha"
+
+          sed -i -e "s/^  version \".*\"/  version \"$version\"/" -e "s/^  sha256 \".*\"/  sha256 \"$sha\"/" "$CASK"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$CASK"
+          git commit -m "flowlight $version"
+          git push
+          echo "Updated the cask to $version."
