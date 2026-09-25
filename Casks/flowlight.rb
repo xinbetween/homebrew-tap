@@ -1,6 +1,6 @@
 cask "flowlight" do
-  version "0.7.3"
-  sha256 "619e6dc13f1e2700f0888f540526e956cab1ef3543cf6fb11fb50860bf5d0f12"
+  version "0.7.4"
+  sha256 "80b3b6eea49072cf3f634fba3812b3af3050bb22a0e5892db0c9177e6c8efd0f"
 
   url "https://github.com/xinbetween/flowlight/releases/download/v#{version}/Flowlight.dmg"
   name "Flowlight"
